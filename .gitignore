@@ -1,2 +1,7 @@
 obj_dir/
-programming/
+programming/*.o
+programming/a.out
+programming/tools.s
+programming/main.s
+programming/*.map
+programming/rom
