@@ -46,8 +46,8 @@ __asm__ __volatile__ ("csrrc x0, %0, %1"        \
 void prints(char *c);
 void printx(int n);
 
-int mult32(int a, int b);
-int div32(int a, int b);
-int mod32(int a, int b);
+//int mult32(int a, int b);
+//int div32(int a, int b);
+//int mod32(int a, int b);
 
 #endif

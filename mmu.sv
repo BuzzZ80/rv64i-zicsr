@@ -20,11 +20,11 @@ module mmu(
     // Table Lookaside Buffer
     reg [19:0] tlb_tags [0:127];
     reg [43:0] tlb_ppns [0:127];
-    reg [8:0] tlb_flags [0:127];
+    reg [6:0] tlb_flags [0:127];
     reg tlb_entry_valid [0:127];
 
     // finite state machine for fetching PTEs
-    reg [7:0] table_walker_fsm;
+    reg [3:0] table_walker_fsm;
     reg [1:0] i;
     reg [43:0] a;
     reg [63:0] pte;
@@ -47,23 +47,44 @@ module mmu(
         && !tlb_entry_valid[addr_from_cpu[18:12]];
 
     always_ff @ (posedge phi2)
-    if (rst) begin
+    // restart cpu
+    if (rst)
         table_walker_fsm <= 0;
-        i <= 0;
-        a <= 0;
-    end
+    // start FSM
     else if (tlb_miss && (table_walker_fsm == 0)) 
         table_walker_fsm <= 1;
-    else 
-        table_walker_fsm <= table_walker_fsm << 1;
+    // FSM execution
+    else begin
+        table_walker_fsm[1] <= table_walker_fsm[0] || table_walker_fsm[2];
+        table_walker_fsm[2] <= table_walker_fsm[1] && (pte[3:1] == 0);
+        table_walker_fsm[3] <= table_walker_fsm[1] && (pte[3:1] != 0);
+    end
 
     always_ff @ (posedge phi1)
     if (rst) begin
         pte <= 0;
+        i <= 0;
+        a <= 0;
         stop_execution_ff <= 0;
     end
     else if (table_walker_fsm[0]) begin
-        i <=
+        i <= 2;
+        a <= satp[43:0];
+        stop_execution_ff <= 1;
+    end
+    else if (table_walker_fsm[1]) begin
+        pte <= data_from_mem;
+    end
+    else if (table_walker_fsm[2]) begin
+        i <= i - 1;
+        a <= pte[53:10];
+    end
+    else if (table_walker_fsm[3]) begin
+        tlb_tags[addr_from_cpu[18:12]] <= addr_from_cpu[27:18];
+        tlb_ppns[addr_from_cpu[18:12]] <= pte[53:10];
+        tlb_flags[addr_from_cpu[18:12]] <= pte[7:1];
+        tlb_entry_valid[addr_from_cpu[18:12]] <= 1;
+    end
     
 
     // memory interface
@@ -75,13 +96,13 @@ module mmu(
         addr_to_mem = addr_from_cpu;
         read_rq_to_memory = read_rq_from_cpu;
     end
-    else if (table_walker_fsm == 0) begin
-        addr_to_mem = {tlb_ppns[addr_from_cpu[18:12]], addr_from_cpu[11:0]};
-        read_rq_to_memory = read_rq_from_cpu;
-    end
-    else if (table_walker_fsm[0]) begin
+    else if (table_walker_fsm != 0) begin
         addr_to_mem = {a, vpn[i], 3'b0}
         read_rq_to_memory = 1;
+    end
+    else begin
+        addr_to_mem = {tlb_ppns[addr_from_cpu[18:12]], addr_from_cpu[11:0]};
+        read_rq_to_memory = read_rq_from_cpu;
     end
 
 endmodule

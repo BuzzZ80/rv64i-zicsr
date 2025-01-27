@@ -19,6 +19,10 @@ void printx(int n) {
         }
     }
 }
+/*
+int negate(int n) {
+    return ~n + 1;
+}
 
 int mult32(int a, int b) {
     if (a == 0 | b == 0) {
@@ -37,8 +41,8 @@ int mult32(int a, int b) {
 
 int div32(int n, int d) {
     if (d == 0 || n == 0) return 0;
-    if (n < 0) return -((-n)/d);
-    if (d < 0) return -(n/(-d));
+    if (n < 0) return negate(div32(negate(n), d));
+    if (d < 0) return negate(div32(n, negate(d)));
     int q = 0;
     int r = 0;
 
@@ -68,3 +72,4 @@ int mod32(int n, int d) {
     }
     return r;
 }
+*/
