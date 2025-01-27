@@ -6,7 +6,7 @@ module csr_file(
     input logic take_trap,
     input logic trap_to_s,
     input logic [63:0] trap_cause,
-    input logic [63:0] program_counter,
+    input logic [55:0] program_counter,
     input logic mret,
     input logic sret,
     input logic [11:0] csr_addr,
@@ -116,7 +116,7 @@ module csr_file(
             priv_level <= 2'b01;
 
             scause <= trap_cause;
-            sepc <= program_counter;
+            sepc <= {8'b0, program_counter};
         end
         else begin
             mstatus[7] <= mstatus[3];
@@ -125,7 +125,7 @@ module csr_file(
             priv_level <= 2'b11;
 
             mcause <= trap_cause;
-            mepc <= program_counter;
+            mepc <= {8'b0, program_counter};
         end
     end
     else if (mret) begin

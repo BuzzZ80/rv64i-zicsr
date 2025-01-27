@@ -5,7 +5,7 @@ module testbench;
     logic phi2;
     logic rst;
 
-    wire [63:0] data_address;
+    wire [55:0] data_address;
     wire [1:0] data_size;
     logic [63:0] input_data;
     wire input_data_unsigned;
@@ -14,7 +14,7 @@ module testbench;
     wire [63:0] output_data;
     wire output_data_request;
     logic output_data_complete;
-    wire [63:0] instruction_address;
+    wire [55:0] instruction_address;
     logic [31:0] input_instruction;
     wire input_instruction_request;
     logic input_instruction_valid;
@@ -140,7 +140,7 @@ module testbench;
     end
 
     always_ff @(posedge phi2) if (output_data_request) begin
-        if (data_address[63:15] == 0) begin 
+        if (data_address[55:15] == 0) begin 
             logic [5:0] shift;
             logic [63:0] mask;
             logic [63:0] preread;
@@ -170,13 +170,13 @@ module testbench;
             //#1 $display("%x from %x (%x)", ram[data_address[30:3]], data_address, data_size);
             //$display("");
         end
-        else if (data_address == 64'hFFFFFFFFFFFFFFF8) begin
+        else if (data_address == 56'hFFFFFFFFFFFFF8) begin
             $finish();
         end
-        else if (data_address == 64'hFFFFFFFFFFFFFFFC) begin
+        else if (data_address == 56'hFFFFFFFFFFFFFC) begin
             $write("%s", output_data[7:0]);
         end
-        else if (data_address == 64'hFFFFFFFFFFFFFFF0) begin
+        else if (data_address == 56'hFFFFFFFFFFFFF0) begin
             $display("%d", $signed(output_data));
         end
     end

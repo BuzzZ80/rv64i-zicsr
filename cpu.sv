@@ -4,6 +4,7 @@
 `include "branch_resolver.sv"
 `include "csr.sv"
 `include "trap_handler.sv"
+`include "mmu.sv"
 
 // TODO: reimplement vectored interrupts to set pc instead of reading address into pc
 
@@ -12,7 +13,7 @@ module cpu(
     input logic phi2,
     input logic rst,
 
-    output logic [63:0] data_address,
+    output logic [55:0] data_address,
     output logic [1:0] data_size,
 
     input wire [63:0] input_data,
@@ -24,7 +25,7 @@ module cpu(
     output logic output_data_request,
     input wire output_data_complete,
 
-    output logic [63:0] instruction_address,
+    output logic [55:0] instruction_address,
 
     input wire [31:0] input_instruction,
     output logic input_instruction_request,
@@ -45,13 +46,22 @@ module cpu(
     assign excs[11] = (_csr_file.priv_level == 2'b11) && ecall;
 
     // Instruction fetch
-    logic [63:0] program_counter;
-    logic [63:0] next_pc;
+    logic [55:0] program_counter;
+    logic [55:0] next_pc;
     logic can_fetch_next;
+    logic mmu_fetch_in_progress;
+    logic can_retire;
+    reg did_fetch;
     assign input_instruction_request = 1;
-    assign can_fetch_next = input_instruction_valid && (input_data_valid || !input_data_request) && (output_data_complete || !output_data_request);
+    assign can_fetch_next = 
+        input_instruction_valid 
+        && (input_data_valid || !input_data_request) 
+        && (output_data_complete || !output_data_request)
+        && !mmu_fetch_in_progress;
+    assign can_retire = did_fetch && !mmu_fetch_in_progress;
     assign instruction_address = program_counter;
     always_ff @ (posedge phi1) begin
+        did_fetch <= can_fetch_next;
         if (rst) begin 
             program_counter <= 0;
         end
@@ -63,8 +73,8 @@ module cpu(
             _csr_file.priv_level <= 2'b11;
             next_pc <= 0;
         end
-        else if (can_fetch_next) begin
-            if (do_jump || take_trap || decoded.mret || decoded.sret) next_pc <= alu_result & ~'h3;
+        else if (can_retire) begin
+            if (do_jump || take_trap || decoded.mret || decoded.sret) next_pc <= alu_result[55:0] & ~'h3;
             else next_pc <= program_counter + 4;
         end
     end
@@ -125,8 +135,8 @@ module cpu(
         .phi1(phi1),
         .phi2(phi2),
         .reg_read_addrs(decoded.reg_read_addrs),
-        // don't wb if taking trap
-        .reg_wb_addr(take_trap ? 0 : decoded.reg_wb_addr),
+        // don't wb if taking trap or cant reture
+        .reg_wb_addr(take_trap || !can_retire ? 0 : decoded.reg_wb_addr),
         .reg_read_values(reg_read_values),
         .reg_wb_value(reg_wb_value)
     );
@@ -153,7 +163,7 @@ module cpu(
         operand2 = input_instruction[14] ? {59'b0, decoded.reg_read_addrs[0]} : reg_read_values[0];
     end
     else begin
-        operand1 = decoded.use_pc ? program_counter : reg_read_values[0];
+        operand1 = decoded.use_pc ? {8'b0, program_counter} : reg_read_values[0];
         operand2 = decoded.use_imm ? decoded.immediate : reg_read_values[1];
     end
     alu _alu(
@@ -174,18 +184,34 @@ module cpu(
     );
 
     // Memory access
-    assign data_address = alu_result;
+    wire [63:0] data_fetched_by_mmu;
+    mmu _mmu (
+        .phi1(phi1),
+        .phi2(phi2),
+        .rst(rst),
+        .translation_enable(0),
+        .satp(_csr_file.satp),
+        .read_rq_from_cpu(decoded.data_read),
+        .write_rq_from_cpu(decoded.data_write),
+        .addr_from_cpu(alu_result[55:0]),
+        .data_from_cpu(reg_read_values[1]),
+        .data_to_cpu(data_fetched_by_mmu),
+        .stop_execution(mmu_fetch_in_progress),
+
+        .data_from_mem(input_data),
+        .data_to_mem(output_data),
+        .addr_to_mem(data_address),
+        .read_rq_to_memory(input_data_request),
+        .write_rq_to_memory(output_data_request)
+    );
     assign data_size = decoded.data_size;
     assign input_data_unsigned = decoded.read_unsigned;
-    assign input_data_request = decoded.data_read;
-    assign output_data = reg_read_values[1];
-    assign output_data_request = decoded.data_write;
 
     // Register write
     assign reg_wb_value = decoded.jump ? 
-        program_counter + 4 
+        {8'b0, program_counter + 4}
         : (decoded.data_read ? 
-            input_data 
+            data_fetched_by_mmu
             : decoded.csr_read ? 
                 csr_read
                 : alu_result

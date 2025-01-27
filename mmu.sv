@@ -11,7 +11,7 @@ module mmu(
     output logic [63:0] data_to_cpu,
     output logic stop_execution,
 
-    input logic [63:0] data_from_mem
+    input logic [63:0] data_from_mem,
     output logic [63:0] data_to_mem,
     output logic [55:0] addr_to_mem,
     output logic read_rq_to_memory,
@@ -66,6 +66,8 @@ module mmu(
         i <= 0;
         a <= 0;
         stop_execution_ff <= 0;
+        for (int i = 0; i < 128; i++)
+            tlb_entry_valid[i] = 0;
     end
     else if (table_walker_fsm[0]) begin
         i <= 2;
@@ -80,7 +82,7 @@ module mmu(
         a <= pte[53:10];
     end
     else if (table_walker_fsm[3]) begin
-        tlb_tags[addr_from_cpu[18:12]] <= addr_from_cpu[27:18];
+        tlb_tags[addr_from_cpu[18:12]] <= addr_from_cpu[38:19];
         tlb_ppns[addr_from_cpu[18:12]] <= pte[53:10];
         tlb_flags[addr_from_cpu[18:12]] <= pte[7:1];
         tlb_entry_valid[addr_from_cpu[18:12]] <= 1;
@@ -97,7 +99,7 @@ module mmu(
         read_rq_to_memory = read_rq_from_cpu;
     end
     else if (table_walker_fsm != 0) begin
-        addr_to_mem = {a, vpn[i], 3'b0}
+        addr_to_mem = {a, vpn[i], 3'b0};
         read_rq_to_memory = 1;
     end
     else begin
