@@ -189,7 +189,7 @@ module cpu(
         .phi1(phi1),
         .phi2(phi2),
         .rst(rst),
-        .translation_enable(0),
+        .translation_enable(_csr_file.priv_level != 2'b11),
         .satp(_csr_file.satp),
         .read_rq_from_cpu(decoded.data_read),
         .write_rq_from_cpu(decoded.data_write),

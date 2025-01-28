@@ -134,13 +134,13 @@ module testbench;
         //$display("%x %x %x", test_cpu._alu.operand1, test_cpu._alu.operand2, test_cpu._alu.result);
         //$display("sp %x", test_cpu.reg_file.file[2]);
         //$display("");
-        //if (input_data_request) $display("rd %x @ %x : %x", test_cpu.decoded.immediate, data_address, input_data);
-        //if (output_data_request) $display("wr %x @ %x : %x", test_cpu.decoded.immediate, data_address, output_data);
-        //$display("%x %x : %b %x", instruction_address, input_instruction, test_cpu.take_trap, test_cpu.alu_result);
+        if (input_data_request) $display("rd @ %x : %x", data_address, input_data);
+        if (output_data_request) $display("wr @ %x : %x", data_address, output_data);
+        //$display("%x %x : %b", instruction_address, input_instruction, test_cpu._mmu.table_walker_fsm);
     end
 
     always_ff @(posedge phi2) if (output_data_request) begin
-        if (data_address[55:15] == 0) begin 
+        if (data_address[55:31] == 0) begin 
             logic [5:0] shift;
             logic [63:0] mask;
             logic [63:0] preread;

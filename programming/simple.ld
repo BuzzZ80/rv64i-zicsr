@@ -6,7 +6,7 @@ __stack_size  = 0x4000;
 
 MEMORY
 {
-    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 0x8000
+    RAM (rwx) : ORIGIN = 0x00000000, LENGTH = 0x40000000
 }
 SECTIONS
 {

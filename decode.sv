@@ -201,7 +201,6 @@ module decode_regs(
     endcase
 endmodule
 
-// TODO: make alu do operations for csr stuff
 module decode_alu (
     input wire [31:0] instruction,
     input wire [2:0] inst_type,
@@ -244,7 +243,8 @@ module decode_alu (
     // if instruction is add or right shift
     assign uses_func7 = (instruction[13:12] == 2'b01) || (instruction[14:12] == 3'b000);
     assign illegal_instruction = !(
-        ((func7 & 7'b1011111) == 7'b0)
+        ((func7 & 7'b1011110) == 7'b0)
+        && (!func7[0] || (instruction[6:0] == 7'b0010011))
         && (!func7[5] || uses_func7)
     );
 

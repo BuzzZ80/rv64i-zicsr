@@ -41,7 +41,7 @@ module mmu(
         addr_from_cpu[38:30]
     };
 
-    logic tlb_miss = 
+    wire tlb_miss = 
         translation_enable
         && (read_rq_from_cpu || write_rq_from_cpu) 
         && !tlb_entry_valid[addr_from_cpu[18:12]];
@@ -55,6 +55,7 @@ module mmu(
         table_walker_fsm <= 1;
     // FSM execution
     else begin
+        table_walker_fsm[0] <= 0;
         table_walker_fsm[1] <= table_walker_fsm[0] || table_walker_fsm[2];
         table_walker_fsm[2] <= table_walker_fsm[1] && (pte[3:1] == 0);
         table_walker_fsm[3] <= table_walker_fsm[1] && (pte[3:1] != 0);
@@ -86,25 +87,30 @@ module mmu(
         tlb_ppns[addr_from_cpu[18:12]] <= pte[53:10];
         tlb_flags[addr_from_cpu[18:12]] <= pte[7:1];
         tlb_entry_valid[addr_from_cpu[18:12]] <= 1;
+        stop_execution_ff <= 0;
     end
     
 
     // memory interface
     assign data_to_mem = data_from_cpu;
     assign data_to_cpu = data_from_mem;
-    assign write_rq_to_memory = (table_walker_fsm == 0) && write_rq_from_cpu;
+    assign write_rq_to_memory = (!stop_execution) && write_rq_from_cpu;
     always_comb
     if (!translation_enable) begin
         addr_to_mem = addr_from_cpu;
         read_rq_to_memory = read_rq_from_cpu;
     end
-    else if (table_walker_fsm != 0) begin
+    else if (table_walker_fsm[1]) begin
         addr_to_mem = {a, vpn[i], 3'b0};
         read_rq_to_memory = 1;
     end
-    else begin
+    else if (table_walker_fsm == 0) begin
         addr_to_mem = {tlb_ppns[addr_from_cpu[18:12]], addr_from_cpu[11:0]};
         read_rq_to_memory = read_rq_from_cpu;
+    end
+    else begin
+        addr_to_mem = 0;
+        read_rq_to_memory = 0;
     end
 
 endmodule
